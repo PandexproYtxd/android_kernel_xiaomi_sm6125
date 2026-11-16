@@ -29,7 +29,7 @@ jobs:
           curl -sL "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman" -o antman
           chmod +x antman
           ./antman -S
-          
+
           # Build DTC 1.7.2 required for Ginkgo DTBO overlays
           cd "$HOME"
           git clone --depth=1 -b v1.7.2 https://git.kernel.org/pub/scm/utils/dtc/dtc.git
@@ -39,10 +39,27 @@ jobs:
 
       - name: Integrate KernelSU-Next (v3.1.0-legacy-susfs)
         run: |
-          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/v3.1.0-legacy-susfs/kernel/setup.sh" | bash -s v3.1.0-legacy-susfs
-          
-          # Apply manual hooks from fnxln reference patchset if missing
+          cd "$GITHUB_WORKSPACE"
+          rm -rf drivers/kernelsu
+
+          # Clone reference repo with ginkgo 4.14 KSU-Next + SUSFS patches
           git clone --depth=1 https://github.com/fnxln/kernel_xiaomi_ginkgo_ksu.git /tmp/ksu_ref
+
+          # Try official setup.sh from main/legacy if available, otherwise copy driver directly
+          if curl -fsSL "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/main/kernel/setup.sh" -o /tmp/setup.sh; then
+            bash /tmp/setup.sh legacy || true
+          fi
+
+          if [ ! -d "drivers/kernelsu" ] && [ -d "/tmp/ksu_ref/drivers/kernelsu" ]; then
+            cp -r /tmp/ksu_ref/drivers/kernelsu drivers/kernelsu
+          fi
+
+          # Ensure Kconfig includes drivers/kernelsu
+          if [ -d "drivers/kernelsu" ] && ! grep -q "drivers/kernelsu/Kconfig" drivers/Kconfig; then
+            printf '\nsource "drivers/kernelsu/Kconfig"\n' >> drivers/Kconfig
+          fi
+
+          # Apply manual hooks from fnxln reference patchset if present
           if [ -d "/tmp/ksu_ref/patches" ]; then
             cp -r /tmp/ksu_ref/patches ./
             chmod +x patches/apply.sh
@@ -53,7 +70,7 @@ jobs:
         run: |
           DEFCONFIG="vendor/ginkgo-perf_defconfig"
           [ ! -f "arch/arm64/configs/$DEFCONFIG" ] && DEFCONFIG="ginkgo-perf_defconfig"
-          
+
           echo "CONFIG_KSU=y" >> "arch/arm64/configs/$DEFCONFIG"
           echo "CONFIG_KSU_WITH_KPROBES=n" >> "arch/arm64/configs/$DEFCONFIG"
           echo "CONFIG_KSU_SUSFS=y" >> "arch/arm64/configs/$DEFCONFIG"
@@ -72,7 +89,7 @@ jobs:
           export PATH="$HOME/clang/bin:/usr/local/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
-          
+
           DEFCONFIG="vendor/ginkgo-perf_defconfig"
           [ ! -f "arch/arm64/configs/$DEFCONFIG" ] && DEFCONFIG="ginkgo-perf_defconfig"
 
@@ -94,8 +111,7 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           rm -rf AnyKernel3/.git AnyKernel3/README.md AnyKernel3/modules AnyKernel3/patch AnyKernel3/ramdisk
-          
-          # Configure AnyKernel3 for Ginkgo
+
           sed -i 's/kernel.string=.*/kernel.string=Lineage24-A17-KSUNext-SUSFS/' AnyKernel3/anykernel.sh
           sed -i 's/do.devicecheck=1/do.devicecheck=0/' AnyKernel3/anykernel.sh
           sed -i 's|block=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;|block=auto;|' AnyKernel3/anykernel.sh
