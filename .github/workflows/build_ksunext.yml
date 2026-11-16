@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Maximize Build Space
         run: |
@@ -30,40 +30,24 @@ jobs:
           chmod +x antman
           ./antman -S
 
-          # Build DTC 1.7.2 required for Ginkgo DTBO overlays
           cd "$HOME"
           git clone --depth=1 -b v1.7.2 https://git.kernel.org/pub/scm/utils/dtc/dtc.git
           cd dtc
           make NO_PYTHON=1 NO_YAML=1 -j$(nproc)
           sudo install -m 0755 dtc /usr/local/bin/dtc
 
-      - name: Integrate KernelSU-Next (v3.1.0-legacy-susfs)
+      - name: Integrate KernelSU-Next
         run: |
           cd "$GITHUB_WORKSPACE"
           rm -rf drivers/kernelsu
 
-          # Clone reference repo with ginkgo 4.14 KSU-Next + SUSFS patches
-          git clone --depth=1 https://github.com/fnxln/kernel_xiaomi_ginkgo_ksu.git /tmp/ksu_ref
+          git clone --depth=1 https://github.com/KernelSU-Next/KernelSU-Next.git drivers/kernelsu
+          cd drivers/kernelsu
+          git submodule update --init --recursive --depth=1 || true
+          cd "$GITHUB_WORKSPACE"
 
-          # Try official setup.sh from main/legacy if available, otherwise copy driver directly
-          if curl -fsSL "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/main/kernel/setup.sh" -o /tmp/setup.sh; then
-            bash /tmp/setup.sh legacy || true
-          fi
-
-          if [ ! -d "drivers/kernelsu" ] && [ -d "/tmp/ksu_ref/drivers/kernelsu" ]; then
-            cp -r /tmp/ksu_ref/drivers/kernelsu drivers/kernelsu
-          fi
-
-          # Ensure Kconfig includes drivers/kernelsu
-          if [ -d "drivers/kernelsu" ] && ! grep -q "drivers/kernelsu/Kconfig" drivers/Kconfig; then
+          if ! grep -q "drivers/kernelsu/Kconfig" drivers/Kconfig; then
             printf '\nsource "drivers/kernelsu/Kconfig"\n' >> drivers/Kconfig
-          fi
-
-          # Apply manual hooks from fnxln reference patchset if present
-          if [ -d "/tmp/ksu_ref/patches" ]; then
-            cp -r /tmp/ksu_ref/patches ./
-            chmod +x patches/apply.sh
-            ./patches/apply.sh || true
           fi
 
       - name: Configure Defconfig
