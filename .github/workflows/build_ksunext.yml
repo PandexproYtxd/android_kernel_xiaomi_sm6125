@@ -20,19 +20,22 @@ jobs:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
         with:
-          depth: 1
+          fetch-depth: 1
 
       - name: Setup Neutron Clang & DTC 1.7.2
         run: |
-          mkdir -p $HOME/clang
-          cd $HOME/clang
-          bash <(curl -s "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman") -S
+          mkdir -p "$HOME/clang"
+          cd "$HOME/clang"
+          curl -sL "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman" -o antman
+          chmod +x antman
+          ./antman -S
           
           # Build DTC 1.7.2 required for Ginkgo DTBO overlays
-          cd $HOME
+          cd "$HOME"
           git clone --depth=1 -b v1.7.2 https://git.kernel.org/pub/scm/utils/dtc/dtc.git
-          cd dtc && make NO_PYTHON=1 NO_YAML=1 -j$(nproc)
-          sudo cp dtc /usr/local/bin/dtc
+          cd dtc
+          make NO_PYTHON=1 NO_YAML=1 -j$(nproc)
+          sudo install -m 0755 dtc /usr/local/bin/dtc
 
       - name: Integrate KernelSU-Next (v3.1.0-legacy-susfs)
         run: |
@@ -51,29 +54,29 @@ jobs:
           DEFCONFIG="vendor/ginkgo-perf_defconfig"
           [ ! -f "arch/arm64/configs/$DEFCONFIG" ] && DEFCONFIG="ginkgo-perf_defconfig"
           
-          echo "CONFIG_KSU=y" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_WITH_KPROBES=n" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/$DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/$DEFCONFIG
+          echo "CONFIG_KSU=y" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_WITH_KPROBES=n" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS=y" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "arch/arm64/configs/$DEFCONFIG"
 
       - name: Compile Kernel
         run: |
-          export PATH="$HOME/clang/bin:$PATH"
+          export PATH="$HOME/clang/bin:/usr/local/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
           
           DEFCONFIG="vendor/ginkgo-perf_defconfig"
           [ ! -f "arch/arm64/configs/$DEFCONFIG" ] && DEFCONFIG="ginkgo-perf_defconfig"
 
-          make O=out ARCH=arm64 $DEFCONFIG
+          make O=out ARCH=arm64 "$DEFCONFIG"
           make -j$(nproc) O=out ARCH=arm64 \
             CC=clang \
             CLANG_TRIPLE=aarch64-linux-gnu- \
