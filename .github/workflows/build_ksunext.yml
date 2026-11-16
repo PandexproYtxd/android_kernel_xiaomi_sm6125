@@ -31,7 +31,7 @@ jobs:
           ./antman -S
 
           cd "$HOME"
-          git clone --depth=1 -b v1.7.2 https://git.kernel.org/pub/scm/utils/dtc/dtc.git
+          git clone --depth=1 -b v1.7.2 https://github.com/dgibson/dtc.git
           cd dtc
           make NO_PYTHON=1 NO_YAML=1 -j$(nproc)
           sudo install -m 0755 dtc /usr/local/bin/dtc
