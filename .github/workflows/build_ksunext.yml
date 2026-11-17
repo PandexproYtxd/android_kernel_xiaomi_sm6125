@@ -40,25 +40,21 @@ jobs:
           git submodule update --init --recursive --depth=1 || true
           cd "$GITHUB_WORKSPACE"
 
-          ls -la drivers/kernelsu
-          KSU_KCONFIG=""
-          if [ -f "drivers/kernelsu/Kconfig" ]; then
-            KSU_KCONFIG="drivers/kernelsu/Kconfig"
-          elif [ -f "drivers/kernelsu/kernel/Kconfig" ]; then
-            KSU_KCONFIG="drivers/kernelsu/kernel/Kconfig"
-          fi
-
-          if [ -z "$KSU_KCONFIG" ]; then
-            echo "No se encontró Kconfig dentro de drivers/kernelsu"
+          if [ ! -f "drivers/kernelsu/kernel/Kconfig" ]; then
+            echo "No se encontró drivers/kernelsu/kernel/Kconfig"
             exit 1
           fi
 
-          if ! grep -q "$KSU_KCONFIG" drivers/Kconfig; then
-            printf '\nsource "%s"\n' "$KSU_KCONFIG" >> drivers/Kconfig
+          if ! grep -q "drivers/kernelsu/kernel/Kconfig" drivers/Kconfig; then
+            printf '\nsource "drivers/kernelsu/kernel/Kconfig"\n' >> drivers/Kconfig
           fi
 
-          if ! grep -q "kernelsu" drivers/Makefile; then
-            printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> drivers/Makefile
+          if ! grep -q "kernelsu/kernel/" drivers/Makefile; then
+            printf '\nobj-$(CONFIG_KSU) += kernelsu/kernel/\n' >> drivers/Makefile
+          fi
+
+          if grep -q "compat_uptr_t" include/linux/filter.h && ! grep -q "#include <linux/compat.h>" include/linux/filter.h; then
+            sed -i '1i #include <linux/compat.h>' include/linux/filter.h
           fi
 
       - name: Configure Defconfig
@@ -67,7 +63,7 @@ jobs:
           [ ! -f "arch/arm64/configs/$DEFCONFIG" ] && DEFCONFIG="ginkgo-perf_defconfig"
 
           echo "CONFIG_KSU=y" >> "arch/arm64/configs/$DEFCONFIG"
-          echo "CONFIG_KSU_WITH_KPROBES=n" >> "arch/arm64/configs/$DEFCONFIG"
+          echo "CONFIG_KSU_MANUAL_HOOK=y" >> "arch/arm64/configs/$DEFCONFIG"
           echo "CONFIG_KSU_SUSFS=y" >> "arch/arm64/configs/$DEFCONFIG"
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "arch/arm64/configs/$DEFCONFIG"
           echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> "arch/arm64/configs/$DEFCONFIG"
