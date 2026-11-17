@@ -22,19 +22,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup Neutron Clang & DTC 1.7.2
+      - name: Setup Neutron Clang
         run: |
           mkdir -p "$HOME/clang"
           cd "$HOME/clang"
           curl -sL "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman" -o antman
           chmod +x antman
           ./antman -S
-
-          cd "$HOME"
-          git clone --depth=1 -b v1.7.2 https://github.com/dgibson/dtc.git
-          cd dtc
-          make NO_PYTHON=1 NO_YAML=1 -j$(nproc)
-          sudo install -m 0755 dtc /usr/local/bin/dtc
 
       - name: Integrate KernelSU-Next
         run: |
@@ -89,7 +83,7 @@ jobs:
             OBJCOPY=llvm-objcopy \
             OBJDUMP=llvm-objdump \
             STRIP=llvm-strip \
-            DTC_EXT=/usr/local/bin/dtc
+            DTC_EXT=/usr/bin/dtc
 
       - name: Package AnyKernel3
         run: |
