@@ -40,8 +40,25 @@ jobs:
           git submodule update --init --recursive --depth=1 || true
           cd "$GITHUB_WORKSPACE"
 
-          if ! grep -q "drivers/kernelsu/Kconfig" drivers/Kconfig; then
-            printf '\nsource "drivers/kernelsu/Kconfig"\n' >> drivers/Kconfig
+          ls -la drivers/kernelsu
+          KSU_KCONFIG=""
+          if [ -f "drivers/kernelsu/Kconfig" ]; then
+            KSU_KCONFIG="drivers/kernelsu/Kconfig"
+          elif [ -f "drivers/kernelsu/kernel/Kconfig" ]; then
+            KSU_KCONFIG="drivers/kernelsu/kernel/Kconfig"
+          fi
+
+          if [ -z "$KSU_KCONFIG" ]; then
+            echo "No se encontró Kconfig dentro de drivers/kernelsu"
+            exit 1
+          fi
+
+          if ! grep -q "$KSU_KCONFIG" drivers/Kconfig; then
+            printf '\nsource "%s"\n' "$KSU_KCONFIG" >> drivers/Kconfig
+          fi
+
+          if ! grep -q "kernelsu" drivers/Makefile; then
+            printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> drivers/Makefile
           fi
 
       - name: Configure Defconfig
